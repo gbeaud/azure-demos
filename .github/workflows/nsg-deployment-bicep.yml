@@ -1,0 +1,63 @@
+name: Bicep NSG deployment
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the main branch
+  push:
+    branches:
+    - main
+    paths:
+    - nsg-bicep/**
+    - .github/workflows/nsg-deployment-bicep.yml
+  pull_request:
+    branches: [ main ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# This permissions block is needed when using OpenID authentication
+permissions:
+  id-token: write
+  contents: read
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build-and-deploy:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+    - uses: actions/checkout@main
+      name: Checkout
+
+    # Log into Azure using Open ID
+    - uses: azure/login@v1
+      name: Azure OpenID login
+      with:
+        # Using just the "creds" line works but we can't set the subscription
+        # creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID_AVD_DEPLOYMENT }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_LANDINGZONE }}
+
+    # Deploy Bicep file
+    # Documentation on arm-deploy module: https://github.com/Azure/arm-deploy
+    - uses: azure/arm-deploy@v1
+      name: Deploy AVD with Bicep
+      with:
+        scope: subscription
+        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID_LANDINGZONE }}
+        # scope: managementgroup
+        region: westeurope
+        template: ./avd-bicep-deployment/main.bicep
+        parameters: 
+          location=westeurope 
+          name=avd-bicep-demo-westeu-01
+          localAdminName=Demouser
+          localAdminPassword=${{ secrets.AVD_LOCAL_USER_PASSWORD }}
+          domainUserName=DomainAdmin@AZUREVIRTUALDESKTOPDEMO.LOCAL
+          domainPassword=${{ secrets.AVD_DOMAIN_ADMIN_PASSWORD }}
+          @./avd-bicep-deployment/parameters-ad-join-example.json
+        failOnStdErr: false
