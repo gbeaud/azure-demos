@@ -1,23 +1,11 @@
 # Build JSON template
-az bicep build --file main.bicep
-
-name="avd-bicep-test-westeu-01"
+az bicep build --file nsg-1.bicep
 
 # change these as needed
 location=westeurope
-localAdminName=Demouser
-localAdminPassword=Vm-password-123
 
-# Deploy AAD-Joined AVD
-# az deployment sub create --location $location -f ./main.bicep --parameters name=$name localAdminName=$localAdminName localAdminPassword=$localAdminPassword --parameters @parameters-aad-join-example.json -c
 
-az deployment sub create --location $location -f ./main.bicep --parameters name=$name localAdminName=$localAdminName localAdminPassword=$localAdminPassword domainUserName=$domainUserName domainPassword=$domainPassword --parameters @parameters-ad-join-example.json -c
+az deployment group create -g rg-nsg-bicep-demo-westeu-01 -f ./nsg-1.bicep --parameters location=westeurope nsgName=nsg1-demo @shared-rules.json -c
 
-# Destroy
 
-name="avd-bicep-deployment-test"
-
-# delete resource group
-az group delete -n rg-$name -y
-# do this only if you AD joined and created a VNET peering
-az network vnet peering delete -n vn-adds_to_vn-$name -g rg-adds --vnet-name adVNET
+az deployment group create -g rg-nsg-bicep-demo-westeu-01 -f ./nsg-1.bicep --parameters location=westeurope nsgName=nsg1-demo -c
