@@ -38,26 +38,22 @@ jobs:
       with:
         # Using just the "creds" line works but we can't set the subscription
         # creds: ${{ secrets.AZURE_CREDENTIALS }}
-        client-id: ${{ secrets.AZURE_CLIENT_ID_AVD_DEPLOYMENT }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID_SANDBOX_OWNER }}
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_LANDINGZONE }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID_SANDBOX }}
 
     # Deploy Bicep file
     # Documentation on arm-deploy module: https://github.com/Azure/arm-deploy
     - uses: azure/arm-deploy@v1
       name: Deploy AVD with Bicep
       with:
-        scope: subscription
-        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID_LANDINGZONE }}
-        # scope: managementgroup
+        scope: resourcegroup
+        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID_SANDBOX }}
+        resourceGroupName: rg-nsg-bicep-demo-westeu-01
         region: westeurope
-        template: ./avd-bicep-deployment/main.bicep
-        parameters: 
+        template: ./nsg-bicep/nsg-1.bicep
+        parameters:
           location=westeurope 
           name=avd-bicep-demo-westeu-01
-          localAdminName=Demouser
-          localAdminPassword=${{ secrets.AVD_LOCAL_USER_PASSWORD }}
-          domainUserName=DomainAdmin@AZUREVIRTUALDESKTOPDEMO.LOCAL
-          domainPassword=${{ secrets.AVD_DOMAIN_ADMIN_PASSWORD }}
-          @./avd-bicep-deployment/parameters-ad-join-example.json
+          @./shared-rules.json
         failOnStdErr: false
