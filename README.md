@@ -1,2 +1,5 @@
-# gebe-demos
-Add-hoc demos on NSG deployments using Bicep + Azure Policy on NSGs
+# Azure demos
+
+By folders:
+nsg-bicep: deploy NSGs using Bicep
+nsg-policy: use an Azure Policy to enforce requirements on NSGs
