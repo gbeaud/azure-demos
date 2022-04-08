@@ -51,7 +51,7 @@ jobs:
         subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID_SANDBOX }}
         resourceGroupName: rg-nsg-bicep-demo-westeu-01
         region: westeurope
-        template: ./nsg-bicep/nsg-1.bicep
+        template: nsg-bicep/nsg-1.bicep
         parameters:
           location=westeurope 
           nsgName=nsg2-demo
