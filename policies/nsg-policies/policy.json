@@ -1,13 +1,13 @@
 {
   "properties": {
-    "displayName": "Block Inbound RDP on NSG test-01",
+    "displayName": "Block Inbound RDP on NSG test--01",
     "policyType": "Custom",
     "mode": "All",
     "metadata": {
       "category": "NSG",
-      "createdBy": "eb4ec784-4723-443f-ada4-8ddeb08293e9",
+      "createdBy": "<user-object-id>",
       "createdOn": "2022-04-12T09:27:11.5717379Z",
-      "updatedBy": "eb4ec784-4723-443f-ada4-8ddeb08293e9",
+      "updatedBy": "<user-object-id>",
       "updatedOn": "2022-04-12T09:29:49.3387984Z"
     },
     "parameters": {
@@ -106,14 +106,14 @@
       }
     }
   },
-  "id": "/subscriptions/ac8ac0e7-49e2-47f4-8059-87377ebce92b/providers/Microsoft.Authorization/policyDefinitions/b8c01362-9e69-44a6-9030-70a44e2290de",
+  "id": "/subscriptions/<your-subscription-id>/providers/Microsoft.Authorization/policyDefinitions/<policy-definition-id>",
   "type": "Microsoft.Authorization/policyDefinitions",
-  "name": "b8c01362-9e69-44a6-9030-70a44e2290de",
+  "name": "<policy-definition-id>",
   "systemData": {
-    "createdBy": "admin@M365x389859.onmicrosoft.com",
+    "createdBy": "<user-email>",
     "createdByType": "User",
     "createdAt": "2022-04-12T09:27:11.494763Z",
-    "lastModifiedBy": "admin@M365x389859.onmicrosoft.com",
+    "lastModifiedBy": "<user-email>",
     "lastModifiedByType": "User",
     "lastModifiedAt": "2022-04-12T09:29:49.2731047Z"
   }
