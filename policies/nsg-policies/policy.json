@@ -110,10 +110,10 @@
   "type": "Microsoft.Authorization/policyDefinitions",
   "name": "<policy-definition-id>",
   "systemData": {
-    "createdBy": "<user-email>",
+    "createdBy": "admin@M365x389859.onmicrosoft.com",
     "createdByType": "User",
     "createdAt": "2022-04-12T09:27:11.494763Z",
-    "lastModifiedBy": "<user-email>",
+    "lastModifiedBy": "admin@M365x389859.onmicrosoft.com",
     "lastModifiedByType": "User",
     "lastModifiedAt": "2022-04-12T09:29:49.2731047Z"
   }
