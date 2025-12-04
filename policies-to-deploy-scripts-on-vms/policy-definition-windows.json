@@ -1,0 +1,95 @@
+{
+  "mode": "Indexed",
+  "displayName": "Deploy PowerShell script to create hello folder on Windows VMs",
+  "description": "This policy deploys a Custom Script Extension to create a folder called 'hello' on all Windows VMs if it doesn't exist.",
+  "metadata": {
+    "category": "Compute",
+    "version": "1.0.0"
+  },
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "field": "type",
+          "equals": "Microsoft.Compute/virtualMachines"
+        },
+        {
+          "field": "Microsoft.Compute/virtualMachines/storageProfile.osDisk.osType",
+          "equals": "Windows"
+        }
+      ]
+    },
+    "then": {
+      "effect": "deployIfNotExists",
+      "details": {
+        "type": "Microsoft.Compute/virtualMachines/extensions",
+        "roleDefinitionIds": [
+          "/providers/Microsoft.Authorization/roleDefinitions/9980e02c-c2be-4d73-94e8-173b1dc7cf3c"
+        ],
+        "existenceCondition": {
+          "allOf": [
+            {
+              "field": "Microsoft.Compute/virtualMachines/extensions/type",
+              "equals": "CustomScriptExtension"
+            },
+            {
+              "field": "Microsoft.Compute/virtualMachines/extensions/publisher",
+              "equals": "Microsoft.Compute"
+            },
+            {
+              "field": "Microsoft.Compute/virtualMachines/extensions/provisioningState",
+              "equals": "Succeeded"
+            },
+            {
+              "field": "name",
+              "equals": "create-hello-folder"
+            }
+          ]
+        },
+        "deployment": {
+          "properties": {
+            "mode": "incremental",
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {
+                "vmName": {
+                  "type": "string"
+                },
+                "location": {
+                  "type": "string"
+                }
+              },
+              "resources": [
+                {
+                  "type": "Microsoft.Compute/virtualMachines/extensions",
+                  "apiVersion": "2023-09-01",
+                  "name": "[concat(parameters('vmName'), '/create-hello-folder')]",
+                  "location": "[parameters('location')]",
+                  "properties": {
+                    "publisher": "Microsoft.Compute",
+                    "type": "CustomScriptExtension",
+                    "typeHandlerVersion": "1.10",
+                    "autoUpgradeMinorVersion": true,
+                    "settings": {
+                      "commandToExecute": "powershell.exe -ExecutionPolicy Bypass -Command \"$folderPath = 'C:\\hello'; if (-not (Test-Path -Path $folderPath)) { New-Item -Path $folderPath -ItemType Directory -Force; Write-Output 'Folder created successfully' } else { Write-Output 'Folder already exists' }\""
+                    }
+                  }
+                }
+              ]
+            },
+            "parameters": {
+              "vmName": {
+                "value": "[field('name')]"
+              },
+              "location": {
+                "value": "[field('location')]"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "parameters": {}
+}

@@ -10,27 +10,24 @@
         - Usual limitations of ARM apply: "WARNING: ExportTemplateCompletedWithErrors" may be triggered because some resources cannot be exported as templates (e.g. Log Analytics workspaces etc...)
     .PARAMETER scopes
         Defines the scope over which the script will run; either 
-            1) on the entire tenant
-            2) on entire subscriptions
-            3) on selected resource groups
-        Option 1: entire tenant => $scopes=$null
-        Option 2: on entire subscriptions => $scopes = @{'<subId>' = $null}
-        Option 3: on selected resource groups (you can also add entire subs) => 
-            $scopes = @{
-                '<subId1>' = @('rg-01', 'rg-02')
-                '<subId2>' = @('rg-03')
-                '<subId3>' = $null # entire sub
-            }
+            1) on the entire tenant => $scopes=$null
+            2) on entire subscriptions => $scopes = @{'<subId>' = $null}
+            3) on selected resource groups => 
+                $scopes = @{
+                    '<subId1>' = @('rg-01', 'rg-02')
+                    '<subId2>' = @('rg-03')
+                    '<subId3>' = $null # entire sub
+                }
     .PARAMETER retentionDays
         Retention period in days for template spec versions; all versions older than the retention period will be deleted during next run
     .NOTES
         AUTHOR: Guillaume Beaud (Microsoft Cloud Solution Architect)
-        LASTEDIT: October 31st, 2024
+        LASTEDIT: December 2024
 #>
 
 # To cover specific subscriptions / resource groups
 $scopes = @{
-    '<subId1>' = @('rg-01', 'rg-02')
+    '<subId1>' = @('rg-01', 'rg-02') # selected resource groups
     '<subId2>' = @('rg-03')
     '<subId3>' = $null # entire sub
 }
@@ -40,13 +37,16 @@ $scopes = @{
 
 $retentionDays = 365
 
-function Export-ResourceGroup(
-    [string]$resourceGroupName,
-    [int]$retentionDays) {
+function Export-ResourceGroup {
     <#
     .SYNOPSIS
         Export a single, entire resource group as an ARM template spec and store it in the resource group
     #>
+    [CmdletBinding()]
+    param (
+        [string]$resourceGroupName,
+        [int]$retentionDays
+    )
 
     Write-Host "Processing resource group: $resourceGroupName ... `n"
 
@@ -55,36 +55,43 @@ function Export-ResourceGroup(
     $backupFilename = $templateVersion + '.json'
     $backupFilePath = ($env:TEMP + '\' + $backupFilename)
 
-    # Collect all objects in the resource group excluding template specs and their versions
-    $objectsExcludingTemplates = Get-AzResource -ResourceGroupName $resourceGroupName |
-    Where-Object { $_.ResourceType -ne 'Microsoft.Resources/templateSpecs' `
-            -and $_.ResourceType -ne 'Microsoft.Resources/templateSpecs/versions' }
+    try {
+        
+        # Collect all objects in the resource group excluding template specs and their versions
+        $objectsExcludingTemplates = Get-AzResource -ResourceGroupName $resourceGroupName |
+        Where-Object { $_.ResourceType -ne 'Microsoft.Resources/templateSpecs' `
+                -and $_.ResourceType -ne 'Microsoft.Resources/templateSpecs/versions' }
 
-    # Export the resource group as ARM JSON excluding template specs and their versions, only if the list of objects is not null
-    if ($null -ne $objectsExcludingTemplates) {
+        # Export the resource group as ARM JSON excluding template specs and their versions, only if the list of objects is not null
+        if ($null -ne $objectsExcludingTemplates) {
 
-        # Create the ARM template JSON file and save it locally
-        Export-AzResourceGroup -Force -ResourceGroupName $resourceGroupName -Resource @($objectsExcludingTemplates.ResourceID) -SkipAllParameterization -Path $backupFilePath
+            # Create the ARM template JSON file and save it locally
+            Export-AzResourceGroup -Force -ResourceGroupName $resourceGroupName -Resource @($objectsExcludingTemplates.ResourceID) -SkipAllParameterization -Path $backupFilePath
 
-        # Trim name since template spec names only support 90 characters
-        $templateSpecName = 'ts-' + ($resourceGroupName[0..80] -join '')
+            # Trim name since template spec names only support 90 characters
+            $templateSpecName = 'ts-' + ($resourceGroupName[0..80] -join '')
 
-        # Create a template spec from the local ARM JSON file
-        New-AzTemplateSpec `
-            -Name $templateSpecName `
-            -Version $templateVersion `
-            -ResourceGroupName $resourceGroupName `
-            -Location (Get-AzResourceGroup -Name $resourceGroupName).Location `
-            -TemplateFile $backupFilePath `
-            -Force
+            # Create a template spec from the local ARM JSON file
+            New-AzTemplateSpec `
+                -Name $templateSpecName `
+                -Version $templateVersion `
+                -ResourceGroupName $resourceGroupName `
+                -Location (Get-AzResourceGroup -Name $resourceGroupName).Location `
+                -TemplateFile $backupFilePath `
+                -Force
     
-        # Calling function to remove old versions of template specs
-        Remove-OldTemplates -resourceGroupName $resourceGroupName -templateSpecName $templateSpecName -retentionDays $retentionDays
+            # Calling function to remove old versions of template specs
+            Remove-OldTemplates -resourceGroupName $resourceGroupName -templateSpecName $templateSpecName -retentionDays $retentionDays
 
-        Write-Host -ForegroundColor Green "Resource group $resourceGroupName successfully exported! `n"
+            Write-Host -ForegroundColor Green "Resource group $resourceGroupName successfully exported! `n"
+        }
+        else {
+            Write-Output "Resource group $resourceGroupName has no resources to export. `n"
+        }
     }
-    else {
-        Write-Output "Resource group $resourceGroupName has no resources to export. `n"
+
+    catch {
+        Write-Error "Failed to export resources in resource group: $resourceGroupName. Error: $_"    
     }
 }
 
@@ -93,19 +100,26 @@ function Remove-OldTemplates {
     .SYNOPSIS
         Deletes all versions of the template spec older than the given retention period in days
     #>
+    [CmdletBinding()]
     param (
         [string]$resourceGroupName,
-        [string]$templateSpecName,
+        [string]$subscriptionId,
         [int]$retentionDays
     )
  
-    $templateSpec = Get-AzTemplateSpec -ResourceGroupName $resourceGroupName -Name $templateSpecName
-
-    foreach ($version in $templateSpec.Versions) {
-        if ($version.CreationTime.AddDays($retentionDays) -lt (Get-Date)) {
-            Write-Host 'Deleting template spec version:' $version.Name
-            Remove-AzTemplateSpec -Force -ResourceGroupName $resourceGroupName -Name $templateSpec.Name -Version $version.Name
-        } 
+    try {
+        
+        $templateSpec = Get-AzTemplateSpec -ResourceGroupName $resourceGroupName -Name $templateSpecName
+        
+        foreach ($version in $templateSpec.Versions) {
+            if ($version.CreationTime.AddDays($retentionDays) -lt (Get-Date)) {
+                Write-Host 'Deleting template spec version:' $version.Name
+                Remove-AzTemplateSpec -Force -ResourceGroupName $resourceGroupName -Name $templateSpec.Name -Version $version.Name
+            } 
+        }
+    }
+    catch {
+        Write-Error "Failed to remove old template specs in resource group: $resourceGroupName in subscription: $subscriptionId. Error: $_"
     }
 }
 
@@ -114,6 +128,7 @@ function Export-Subscriptions {
     .SYNOPSIS
         Iterate over scoped subscriptions and resource groups to call Export-ResourceGroup
     #>
+    [CmdletBinding()]
     param (
         [int]$retentionDays,
         $scopes
@@ -141,7 +156,8 @@ function Export-Subscriptions {
                         -resourceGroupName $resourceGroup.ResourceGroupName `
                         -retentionDays $retentionDays
                 }
-            } else {
+            }
+            else {
                 # Otherwise, the script exports only the selected resource groups
                 foreach ($resourceGroup in $scope.Value) {
                     Export-ResourceGroup `

@@ -1,0 +1,11 @@
+# Initialize Terraform
+terraform init
+
+# Preview changes
+terraform plan
+
+# Deploy
+terraform apply
+
+# Get the admin password
+terraform output admin_password
