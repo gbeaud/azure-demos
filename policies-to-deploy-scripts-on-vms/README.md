@@ -9,6 +9,8 @@ This demo showcases how to use Azure Policy with the `DeployIfNotExists` effect 
 - **Windows VMs**: Deploys a PowerShell script that creates a `C:\hello` folder
 - **Linux VMs**: Deploys a Shell script that creates a `/hello` folder
 
+![alt text](image.png)
+
 ## What Gets Deployed
 
 - 1 Resource Group
