@@ -3,12 +3,8 @@
     "displayName": "Block Inbound RDP on NSG",
     "policyType": "Custom",
     "mode": "All",
-    "metadata": {
-      "category": "NSG",
-      "createdBy": "<user-object-id>",
-      "createdOn": "2022-04-12T09:27:11.5717379Z",
-      "updatedBy": "<user-object-id>",
-      "updatedOn": "2022-04-12T09:29:49.3387984Z"
+"metadata": {
+      "category": "NSG"
     },
     "parameters": {
       "effect": {
@@ -108,13 +104,5 @@
   },
   "id": "/subscriptions/<your-subscription-id>/providers/Microsoft.Authorization/policyDefinitions/<policy-definition-id>",
   "type": "Microsoft.Authorization/policyDefinitions",
-  "name": "<policy-definition-id>",
-  "systemData": {
-    "createdBy": "<user-email>",
-    "createdByType": "User",
-    "createdAt": "2022-04-12T09:27:11.494763Z",
-    "lastModifiedBy": "<user-email>",
-    "lastModifiedByType": "User",
-    "lastModifiedAt": "2022-04-12T09:29:49.2731047Z"
-  }
+  "name": "<policy-definition-id>"
 }

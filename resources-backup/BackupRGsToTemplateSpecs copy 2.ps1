@@ -27,9 +27,9 @@
 
 # To cover specific subscriptions / resource groups
 $scopes = @{
-    # 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxx' = @('rg-template-specs-backup-dev-swec-01', 'rg-template-specs-backup-dev-swec-02')
+    # '<subId1>' = @('rg-template-specs-backup-dev-swec-01', 'rg-template-specs-backup-dev-swec-02')
     '<your-subscription-id>' = $null
-    # 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxx' = $null # entire sub
+    # '<subId2>' = $null # entire sub
 }
 
 # To cover the entire tenant
