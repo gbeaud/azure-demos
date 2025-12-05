@@ -1,1 +1,15 @@
 resources-backup/BackupRGsToTemplateSpecs copy.ps1
+
+# Terraform state files (contain secrets!)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform plan files
+*.tfplan
+
+# Local .terraform directories
+.terraform/
+
+# Terraform lock file (optional, but often excluded)
+.terraform.lock.hcl
