@@ -107,6 +107,8 @@ resource "azurerm_public_ip" "linux" {
 }
 
 # Generate random password for VM admin
+# Note: This resource only defines password generation rules, not an actual password.
+# The real password is generated at runtime and stored securely in the Terraform state file, excluded from version control with .gitignore.
 resource "random_password" "admin_password" {
   length           = 16
   special          = true
@@ -238,7 +240,7 @@ locals {
 # =============================================================================
 
 resource "azurerm_policy_definition" "deploy_hello_folder_windows" {
-  name         = var.policy_definition_name
+  name         = var.windows_policy_definition_name
   policy_type  = "Custom"
   mode         = local.policy_definition_windows.mode
   display_name = local.policy_definition_windows.displayName
@@ -270,7 +272,7 @@ resource "azurerm_policy_definition" "deploy_hello_folder_linux" {
 # =============================================================================
 
 resource "azurerm_resource_group_policy_assignment" "deploy_hello_folder_windows" {
-  name                 = var.policy_assignment_name
+  name                 = var.windows_policy_assignment_name
   resource_group_id    = azurerm_resource_group.main.id
   policy_definition_id = azurerm_policy_definition.deploy_hello_folder_windows.id
   description          = "Assigns the policy to deploy a script that creates a hello folder on Windows VMs"

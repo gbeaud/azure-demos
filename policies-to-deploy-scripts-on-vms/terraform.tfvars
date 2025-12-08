@@ -14,8 +14,8 @@ linux_vm_size         = "Standard_B1s"
 allowed_source_ip     = "*"  # Replace with your IP for security
 
 # Windows Policy settings
-policy_definition_name = "deploy-hello-folder-windows-vm"
-policy_assignment_name = "assign-hello-folder-windows"
+windows_policy_definition_name = "deploy-hello-folder-windows-vm"
+windows_policy_assignment_name = "assign-hello-folder-windows"
 
 # Linux Policy settings
 linux_policy_definition_name = "deploy-hello-folder-linux-vm"

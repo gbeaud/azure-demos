@@ -99,13 +99,13 @@ variable "linux_vm_size" {
 # WINDOWS POLICY VARIABLES
 # =============================================================================
 
-variable "policy_definition_name" {
+variable "windows_policy_definition_name" {
   description = "Name of the Windows policy definition"
   type        = string
   default     = "deploy-hello-folder-windows-vm"
 }
 
-variable "policy_assignment_name" {
+variable "windows_policy_assignment_name" {
   description = "Name of the Windows policy assignment"
   type        = string
   default     = "assign-hello-folder-windows"
