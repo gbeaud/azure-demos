@@ -27,46 +27,56 @@ The mix is intentional: parent/child resources (VNet/subnets, storage/container)
 
 ## 2. Demo flow
 
-### a. Raw export (shows why it is only a starting point)
+| File | Purpose |
+|---|---|
+| `deploy-demo-resources.ps1` | Creates the "unmanaged" starting point (step 1) |
+| `export-to-bicep.ps1` | Exports resource groups to `export/<rg>/` (raw JSON, decompiled Bicep, missing extension resources) |
+| `bicep/main.bicep` + `main.bicepparam` | Reference result after refactoring (what you should end up with) |
+| `deploy-bicep.ps1` | What-if / deploy / deploy as deployment stack |
+
+### a. Export to Bicep
 ```powershell
-az group export -n rg-bicep-export-demo-swec-01 --skip-all-params > main.json
-az bicep decompile --file main.json
+./export-to-bicep.ps1 -ResourceGroupNames rg-bicep-export-demo-swec-01
+# or every resource group of the subscription:
+./export-to-bicep.ps1 -SubscriptionName sub-general-demos-swec-01
 ```
-Or in the portal: resource group > **Automation > Export template > Bicep**.
+Per resource group, `export/<rg>/` contains:
+
+| File | Content |
+|---|---|
+| `main.json` / `main.bicep` | Raw `az group export` and its `az bicep decompile` |
+| `export-errors.txt` / `decompile-errors.txt` | Resource types that could not be exported, Bicep compile errors |
+| `role-assignments.json`, `diagnostic-settings.json`, `locks.json`, `policy-assignments.json` | Extension resources **not captured by the export** |
+
+`export/` is git-ignored: it is regenerated on demand and is not the code you maintain. Portal equivalent: resource group > **Automation > Export template > Bicep**.
 
 Talking points (observed on this RG):
-- ~11,000 lines / ~750 resources, mostly Log Analytics saved searches and tables, read-only properties and hard-coded IDs.
+- ~11,500 lines / ~760 resources, mostly Log Analytics saved searches and tables, read-only properties and hard-coded IDs.
 - Export errors for some child types (`workspaces/dataSources`, `sites/extensions`, ...).
-- Decompile produces errors (e.g. VNet <-> subnet cycle) that need manual fixing.
-- **Role assignments and diagnostic settings are not exported.**
+- 8 decompile errors (e.g. VNet <-> subnet and NSG <-> rule cycles) that need manual fixing.
+- **Role assignments and diagnostic settings are not in the export** - they come from the separate JSON files.
+- `az group export` is limited to 200 resources per resource group.
 
-At scale, script this per resource group (loop over `az group list`, export + decompile each into its own folder). See [section 3](#3-recommended-approach-at-scale).
-
-### b. Collect what the export misses
-Extension resources must be retrieved separately and added to the Bicep code:
-```powershell
-$rg = "rg-bicep-export-demo-swec-01"
-az role assignment list -g $rg -o json                                     # RBAC
-az monitor diagnostic-settings list --resource <resource-id> -o json       # per resource
-az lock list -g $rg -o json                                                # resource locks
-az policy assignment list -g $rg -o json                                   # policy assignments
-```
-
-### c. Clean, per-resource import with VS Code
+### b. Clean, per-resource import with VS Code
 Bicep extension > command palette > **Bicep: Insert Resource...** > paste a resource ID. Produces a single clean resource declaration from the live configuration.
 
-### d. Refactor with GitHub Copilot
-Ask Copilot to turn the export into a clean `main.bicep`: parameters for names/location/tags, symbolic references instead of hard-coded IDs, remove read-only/default properties, add the missing role assignments and diagnostic settings, optionally split into modules / use Azure Verified Modules.
+### c. Refactor with GitHub Copilot
+Ask Copilot to turn `export/<rg>/main.bicep` and the JSON files into a clean `main.bicep`: parameters for names/location/tags, symbolic references instead of hard-coded IDs, remove read-only/default properties, add the role assignments and diagnostic settings, optionally split into modules / use Azure Verified Modules.
 
-### e. Prove it matches reality
+Compare the result with [bicep/main.bicep](bicep/main.bicep) (~220 lines instead of ~11,500). Note how it **adopts** the existing role assignments by passing their names in `main.bicepparam`: generating new names with `guid()` would fail with `RoleAssignmentExists`.
+
+### d. Prove it matches reality
 ```powershell
-az deployment group what-if -g rg-bicep-export-demo-swec-01 --template-file main.bicep
+./deploy-bicep.ps1                     # what-if (default)
+./deploy-bicep.ps1 -Mode Deploy        # what-if + confirmation, then deploy
+./deploy-bicep.ps1 -Mode Stack -DenySettingsMode denyWriteAndDelete   # deployment stack
 ```
-Iterate until what-if shows (almost) no changes - the resources are now described by code. Then deploy it (optionally as a **deployment stack** to enforce management) and change `managedBy` tag to `bicep`.
+Use `-TemplateFile` / `-ParametersFile` to target your own refactored template.
 
-### f. (Optional) Show drift
-Change something in the portal (e.g. add an NSG rule) and re-run what-if to show the drift being detected.
+With the reference template, what-if shows **no create and no delete**: only the `managedBy` tag changing from `manual` to `bicep`, plus known what-if noise (e.g. `principalId` shown as a `reference()`, disabled log categories in diagnostic settings, server-side defaults). Iterate until that is the case, then deploy: the resources are now managed by code. A **deployment stack** additionally tracks the managed resources and can block changes made outside Bicep.
 
+### e. (Optional) Show drift
+Change something in the portal (e.g. add an NSG rule) and re-run `./deploy-bicep.ps1` to show the drift being detected.
 ## 3. Recommended approach at scale
 
 Export + decompile is the right first step, but the output is **raw material, not the final code**.
@@ -96,8 +106,8 @@ export/                # raw exports, kept for reference only
 ```
 
 ### Process
-1. **Scripted export per RG**: `az group export` + `az bicep decompile` into `export/<rg-name>/`. Use VS Code **Insert Resource** for a few resources needing a clean start.
-2. **Add the missing pieces**: role assignments, diagnostic settings, locks, policy assignments (see [2b](#b-collect-what-the-export-misses)).
+1. **Scripted export per RG** with `export-to-bicep.ps1`: `az group export` + `az bicep decompile` into `export/<rg-name>/`. Use VS Code **Insert Resource** for a few resources needing a clean start.
+2. **Add the missing pieces**: role assignments, diagnostic settings, locks, policy assignments (collected by `export-to-bicep.ps1`).
 3. **Refactor with Copilot** into the target structure: parameters, symbolic references, no read-only properties, AVM modules.
 4. **Validate with `what-if`** until it shows no changes, then deploy, optionally as a **deployment stack** (with deny settings to block out-of-band changes).
 5. **Store in Git, not just VS Code**: pull requests for review, CI/CD (GitHub Actions / Azure DevOps) running `what-if` on PRs and deploying on merge, and a scheduled `what-if` to detect drift.
