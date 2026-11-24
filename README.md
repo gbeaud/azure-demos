@@ -4,6 +4,7 @@
 
 By folders:
 - `adx-logs-management`: update policies for ADX to ingest logs from Azure Firewall
+- `bicep-export-demo`: deploy manually-created cheap resources, then convert them into Bicep code
 - `fslogix-setup`: automatic FSLogix Windows registry configuration for AVD
 - `get-hostnames`: collect all VM names across all subscriptions, their NICs and private/public IPs
 - `nsg-bicep`: deploy NSGs using Bicep and GitHub Actions
