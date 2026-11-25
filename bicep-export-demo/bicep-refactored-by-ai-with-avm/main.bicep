@@ -73,6 +73,9 @@ param appServicePlanSkuCapacity int
 @description('Linux runtime stack for the web app.')
 param linuxFxVersion string
 
+var keyVaultName = 'kv-${namePrefix}-${suffix}'
+var keyVaultUri = 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/'
+
 // ---------- Identity ----------
 module identity 'br/public:avm/res/managed-identity/user-assigned-identity:0.6.0' = {
   params: {
@@ -80,6 +83,7 @@ module identity 'br/public:avm/res/managed-identity/user-assigned-identity:0.6.0
     location: location
     tags: tags
     enableTelemetry: enableTelemetry
+    isolationScope: 'None' // match existing (AVM default: not sent, Azure returns None)
   }
 }
 
@@ -105,7 +109,12 @@ module storage 'br/public:avm/res/storage/storage-account:0.33.2' = {
       deleteRetentionPolicyEnabled: false // match existing (AVM default: true, 6 days)
       containerDeleteRetentionPolicyEnabled: false // match existing (AVM default: true, 7 days)
       containers: [
-        { name: 'data', publicAccess: 'None' }
+        {
+          name: 'data'
+          publicAccess: 'None'
+          defaultEncryptionScope: '$account-encryption-key' // match existing (AVM default: not sent)
+          denyEncryptionScopeOverride: false // match existing (AVM default: not sent)
+        }
       ]
     }
     roleAssignments: [
@@ -171,7 +180,7 @@ module vnet 'br/public:avm/res/network/virtual-network:0.10.2' = {
 // ---------- Secrets ----------
 module keyVault 'br/public:avm/res/key-vault/vault:0.14.3' = {
   params: {
-    name: 'kv-${namePrefix}-${suffix}'
+    name: keyVaultName
     location: location
     tags: tags
     enableTelemetry: enableTelemetry
@@ -231,13 +240,17 @@ module webApp 'br/public:avm/res/web/site:0.24.0' = {
     configs: [
       {
         name: 'appsettings'
+        // The template owns all app settings (AVM default: true, merges current settings with list(), which what-if can't resolve)
+        retainCurrentAppSettings: false
         properties: {
           STORAGE_ACCOUNT_NAME: storage.outputs.name
-          KEY_VAULT_URI: keyVault.outputs.uri
+          // Computed instead of keyVault.outputs.uri, a runtime reference() that what-if can't resolve
+          KEY_VAULT_URI: keyVaultUri
         }
       }
     ]
   }
+  dependsOn: [keyVault]
 }
 
 output webAppUrl string = 'https://${webApp.outputs.defaultHostname}'

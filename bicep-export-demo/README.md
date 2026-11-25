@@ -31,7 +31,7 @@ No Log Analytics workspace on purpose: its ~700 built-in tables and saved search
 |---|---|
 | `deploy-demo-resources.ps1` | Creates the "unmanaged" starting point (step 1) |
 | `export-to-bicep.ps1` | Exports resource groups to `bicep-generated-by-script/<rg>/` (raw JSON, decompiled Bicep, missing extension resources) |
-| `deploy-bicep.ps1` | What-if / deploy / deploy as deployment stack |
+| `deploy-bicep.ps1` | What-if / deploy / deploy as deployment stack / deployment stack what-if |
 
 The two Bicep folders show the before / after:
 
@@ -79,10 +79,18 @@ Compare the result with [bicep-refactored-by-ai-with-avm/main.bicep](bicep-refac
 ./deploy-bicep.ps1                     # what-if (default)
 ./deploy-bicep.ps1 -Mode Deploy        # what-if + confirmation, then deploy
 ./deploy-bicep.ps1 -Mode Stack -DenySettingsMode denyWriteAndDelete   # deployment stack
+./deploy-bicep.ps1 -Mode StackWhatIf   # deployment stack what-if (less noise once the stack exists)
 ```
 By default it uses `bicep-refactored-by-ai-with-avm/main.bicep`. Use `-TemplateFile` / `-ParametersFile` to target your own refactored template.
 
-With the AVM template, what-if shows **no create and no delete**: only the `managedBy` tag changing from `manual` to `bicep`, plus known what-if noise (e.g. `principalId` shown as a `reference()`, server-side defaults). Iterate until that is the case, then deploy: the resources are now managed by code. A **deployment stack** additionally tracks the managed resources and can block changes made outside Bicep.
+With the AVM template, what-if shows **no create and no delete**: only the `managedBy` tag changing from `manual` to `bicep`, plus known what-if noise. Iterate until that is the case, then deploy: the resources are now managed by code. A **deployment stack** additionally tracks the managed resources and can block changes made outside Bicep.
+
+**Why the same `~ Modify` lines come back after every deployment:** what-if compares the template with the resource's current `GET` response. A real difference is applied by the deployment and disappears from the next what-if (the `managedBy` tag only shows once), so lines that persist are noise, not changes. The [resource change history](https://learn.microsoft.com/azure/governance/resource-graph/changes/get-resource-changes) confirms that redeployments change nothing. The noise comes from:
+- **`reference()` / `list()` that what-if can't resolve**: role assignment `principalId` (the identity is deployed in the same template), blob `lastAccessTimeTrackingPolicy` (computed inside AVM).
+- **Write-only properties** that `GET` never returns: Key Vault `createMode`, app settings values (only returned by a `list` call).
+- **Properties AVM always sends that Azure doesn't return when unset**: storage `customDomain`, blob `deleteRetentionPolicy.days` / `automaticSnapshotPolicyEnabled`, web app `clientAffinityPartitioningEnabled` and `siteConfig.*` (stored in `sites/config/web`).
+
+Some noise is removed in `main.bicep` by setting the values Azure returns (identity `isolationScope`, container encryption scope) and by avoiding runtime functions in app settings (`retainCurrentAppSettings: false`, computed `KEY_VAULT_URI`). The rest can't be fixed in the template: use **deployment stack what-if**, which diffs against a baseline stored at each stack deployment and filters this noise. Deploy once with `-Mode Stack`, then preview with `-Mode StackWhatIf` ([docs](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deployment-stacks-what-if-noise-reduction)).
 
 ### e. (Optional) Show drift
 Change something in the portal (e.g. add an NSG rule) and re-run `./deploy-bicep.ps1` to show the drift being detected.
@@ -118,7 +126,7 @@ bicep-generated-by-script/   # raw exports, kept for reference only
 1. **Scripted export per RG** with `export-to-bicep.ps1`: `az group export` + `az bicep decompile` into `bicep-generated-by-script/<rg-name>/`. Use VS Code **Insert Resource** for a few resources needing a clean start.
 2. **Add the missing pieces**: role assignments, diagnostic settings, locks, policy assignments (collected by `export-to-bicep.ps1`).
 3. **Refactor with Copilot** into the target structure: parameters, symbolic references, no read-only properties, AVM modules.
-4. **Validate with `what-if`** until it shows no changes, then deploy, optionally as a **deployment stack** (with deny settings to block out-of-band changes).
+4. **Validate with `what-if`** until it shows no changes other than known noise, then deploy, optionally as a **deployment stack** (with deny settings to block out-of-band changes, and stack what-if for noise-free previews).
 5. **Store in Git, not just VS Code**: pull requests for review, CI/CD (GitHub Actions / Azure DevOps) running `what-if` on PRs and deploying on merge, and a scheduled `what-if` to detect drift.
 
 ## 4. Clean up
