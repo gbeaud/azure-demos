@@ -5,7 +5,7 @@
     (role assignments, diagnostic settings, locks, policy assignments).
 
 .DESCRIPTION
-    The output is raw material to be refactored (e.g. with GitHub Copilot), not production-ready code.
+    Deterministic: no AI involved. The output is raw material to be refactored (e.g. with GitHub Copilot), not production-ready code.
     Note: 'az group export' supports at most 200 resources per resource group.
 
 .EXAMPLE
@@ -13,13 +13,13 @@
 
 .EXAMPLE
     # All resource groups of the subscription
-    ./export-to-bicep.ps1 -SubscriptionName sub-general-demos-swec-01 -OutputPath ./export
+    ./export-to-bicep.ps1 -SubscriptionName sub-general-demos-swec-01 -OutputPath ./bicep-generated-by-script
 #>
 param(
     [string]$SubscriptionName = "sub-general-demos-swec-01",
     # Leave empty to export every resource group in the subscription
     [string[]]$ResourceGroupNames = @(),
-    [string]$OutputPath = (Join-Path $PSScriptRoot "export")
+    [string]$OutputPath = (Join-Path $PSScriptRoot "bicep-generated-by-script")
 )
 
 $ErrorActionPreference = "Stop"
@@ -64,6 +64,9 @@ $summary = foreach ($rg in $ResourceGroupNames) {
 
     Write-Host "Decompiling to Bicep..."
     az bicep decompile --file $templateFile --force *> $decompileLog
+    # Strip the local absolute path so the log can be committed
+    $rgFullPath = (Resolve-Path $rgDir).Path + [IO.Path]::DirectorySeparatorChar
+    (Get-Content $decompileLog -Raw).Replace($rgFullPath, '') | Set-Content -Path $decompileLog -Encoding utf8
     $bicepFile = Join-Path $rgDir "main.bicep"
 
     Write-Host "Collecting role assignments, locks, policy assignments..."

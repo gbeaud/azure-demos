@@ -17,7 +17,7 @@
 param(
     [string]$SubscriptionName = "sub-general-demos-swec-01",
     [string]$ResourceGroupName = "rg-bicep-export-demo-swec-01",
-    [string]$TemplateFile = (Join-Path $PSScriptRoot "bicep/main.bicep"),
+    [string]$TemplateFile = (Join-Path $PSScriptRoot "bicep-refactored-by-ai-with-avm/main.bicep"),
     # Defaults to the .bicepparam next to the template if it exists
     [string]$ParametersFile,
     [ValidateSet("WhatIf", "Deploy", "Stack")]

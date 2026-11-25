@@ -1,0 +1,32 @@
+[
+  {
+    "createdBy": "521d3cf0-666a-4b4c-a134-a366c6d60d18",
+    "createdOn": "2026-11-24T10:12:16.728004+01:00",
+    "id": "/subscriptions/d351604a-5f79-488d-a73e-666707f38f1f/resourceGroups/rg-bicep-export-demo-swec-01/providers/Microsoft.Storage/storageAccounts/stbicepdemo8a145b/providers/Microsoft.Authorization/roleAssignments/5c59702d-e454-4525-976d-5c87b3cfd5fa",
+    "name": "5c59702d-e454-4525-976d-5c87b3cfd5fa",
+    "principalId": "09b88f88-6107-4064-906e-d4779949ab8f",
+    "principalType": "ServicePrincipal",
+    "resourceGroup": "rg-bicep-export-demo-swec-01",
+    "roleDefinitionId": "/subscriptions/d351604a-5f79-488d-a73e-666707f38f1f/providers/Microsoft.Authorization/roleDefinitions/2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+    "roleDefinitionName": "Storage Blob Data Reader",
+    "scope": "/subscriptions/d351604a-5f79-488d-a73e-666707f38f1f/resourceGroups/rg-bicep-export-demo-swec-01/providers/Microsoft.Storage/storageAccounts/stbicepdemo8a145b",
+    "type": "Microsoft.Authorization/roleAssignments",
+    "updatedBy": "521d3cf0-666a-4b4c-a134-a366c6d60d18",
+    "updatedOn": "2026-11-24T10:12:16.728004+01:00"
+  },
+  {
+    "createdBy": "521d3cf0-666a-4b4c-a134-a366c6d60d18",
+    "createdOn": "2026-11-24T10:12:21.589366+01:00",
+    "id": "/subscriptions/d351604a-5f79-488d-a73e-666707f38f1f/resourceGroups/rg-bicep-export-demo-swec-01/providers/Microsoft.KeyVault/vaults/kv-bicepdemo-8a145b/providers/Microsoft.Authorization/roleAssignments/fd86603c-7819-4cf1-a801-0b41863cc237",
+    "name": "fd86603c-7819-4cf1-a801-0b41863cc237",
+    "principalId": "09b88f88-6107-4064-906e-d4779949ab8f",
+    "principalType": "ServicePrincipal",
+    "resourceGroup": "rg-bicep-export-demo-swec-01",
+    "roleDefinitionId": "/subscriptions/d351604a-5f79-488d-a73e-666707f38f1f/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+    "roleDefinitionName": "Key Vault Secrets User",
+    "scope": "/subscriptions/d351604a-5f79-488d-a73e-666707f38f1f/resourceGroups/rg-bicep-export-demo-swec-01/providers/Microsoft.KeyVault/vaults/kv-bicepdemo-8a145b",
+    "type": "Microsoft.Authorization/roleAssignments",
+    "updatedBy": "521d3cf0-666a-4b4c-a134-a366c6d60d18",
+    "updatedOn": "2026-11-24T10:12:21.589366+01:00"
+  }
+]

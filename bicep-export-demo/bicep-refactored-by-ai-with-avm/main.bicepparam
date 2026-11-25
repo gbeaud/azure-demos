@@ -4,7 +4,7 @@ using 'main.bicep'
 // Update if you deploy the demo to another subscription or resource group.
 param suffix = '8a145b'
 
-// Adopt the role assignments created manually (names from export/<rg>/role-assignments.json)
+// Adopt the role assignments created manually (names from bicep-generated-by-script/<rg>/role-assignments.json)
 // instead of creating duplicates, which would fail with RoleAssignmentExists.
 param storageRoleAssignmentName = '5c59702d-e454-4525-976d-5c87b3cfd5fa'
 param keyVaultRoleAssignmentName = 'fd86603c-7819-4cf1-a801-0b41863cc237'
