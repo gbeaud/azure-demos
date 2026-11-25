@@ -71,6 +71,7 @@ Ask Copilot to turn `bicep-generated-by-script/<rg>/main.bicep` and the JSON fil
 
 Compare the result with [bicep-refactored-by-ai-with-avm/main.bicep](bicep-refactored-by-ai-with-avm/main.bicep) (~200 lines and 7 AVM modules instead of ~530 lines). Things to point out:
 - It **adopts** the existing role assignments by passing their names in `main.bicepparam`: generating new names with `guid()` would fail with `RoleAssignmentExists`.
+- Environment-specific inputs are in `main.bicepparam`: location, resource-name prefix/suffix, tags, SKUs, network address prefixes, and the web app runtime. Security and retention settings that should not be casually varied remain in `main.bicep`.
 - AVM modules apply **secure / production defaults** (GRS, purge protection, infrastructure encryption, network deny, P1v3 plan, ...). To take over existing resources without changing them, those defaults are explicitly overridden to match reality (comments `// match existing (AVM default: ...)`). Some of them, e.g. Key Vault purge protection or storage infrastructure encryption, cannot be reverted or changed after creation, so what-if is essential. Hardening can then be done afterwards, deliberately, one change at a time.
 
 ### d. Prove it matches reality

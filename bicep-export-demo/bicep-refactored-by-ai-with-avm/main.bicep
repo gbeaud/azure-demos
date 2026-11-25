@@ -12,8 +12,18 @@ targetScope = 'resourceGroup'
 param location string = resourceGroup().location
 
 @description('Unique suffix used in globally unique resource names.')
+@minLength(1)
 @maxLength(6)
 param suffix string
+
+@description('Lowercase alphanumeric prefix used in resource names; must fit Key Vault and storage account name limits.')
+@minLength(1)
+@maxLength(14)
+param namePrefix string
+
+@description('Short region and instance code used in resource names.')
+@minLength(1)
+param regionCode string
 
 @description('Tags applied to all resources.')
 param tags object = {
@@ -31,10 +41,42 @@ param keyVaultRoleAssignmentName string?
 @description('Send AVM usage telemetry to Microsoft.')
 param enableTelemetry bool = true
 
+@description('SKU name for the storage account.')
+param storageSkuName string
+
+@description('Blob storage access tier.')
+param storageAccessTier string
+
+@description('SKU for the Key Vault.')
+@allowed([
+  'standard'
+  'premium'
+])
+param keyVaultSku string
+
+@description('Address prefix for the virtual network.')
+param virtualNetworkAddressPrefix string
+
+@description('Address prefix for the application subnet.')
+param appSubnetAddressPrefix string
+
+@description('Address prefix for the data subnet.')
+param dataSubnetAddressPrefix string
+
+@description('SKU name for the App Service plan.')
+param appServicePlanSkuName string
+
+@description('Instance capacity for the App Service plan.')
+@minValue(1)
+param appServicePlanSkuCapacity int
+
+@description('Linux runtime stack for the web app.')
+param linuxFxVersion string
+
 // ---------- Identity ----------
 module identity 'br/public:avm/res/managed-identity/user-assigned-identity:0.6.0' = {
   params: {
-    name: 'id-bicepdemo-swec-01'
+    name: 'id-${namePrefix}-${regionCode}'
     location: location
     tags: tags
     enableTelemetry: enableTelemetry
@@ -44,13 +86,13 @@ module identity 'br/public:avm/res/managed-identity/user-assigned-identity:0.6.0
 // ---------- Storage ----------
 module storage 'br/public:avm/res/storage/storage-account:0.33.2' = {
   params: {
-    name: 'stbicepdemo${suffix}'
+    name: 'st${namePrefix}${suffix}'
     location: location
     tags: tags
     enableTelemetry: enableTelemetry
-    skuName: 'Standard_LRS' // match existing (AVM default: Standard_GRS)
+    skuName: storageSkuName // match existing (AVM default: Standard_GRS)
     kind: 'StorageV2'
-    accessTier: 'Hot'
+    accessTier: storageAccessTier
     allowSharedKeyAccess: false
     allowBlobPublicAccess: false
     requireInfrastructureEncryption: false // match existing (AVM default: true, cannot be changed after creation)
@@ -80,7 +122,7 @@ module storage 'br/public:avm/res/storage/storage-account:0.33.2' = {
 // ---------- Network ----------
 module nsgApp 'br/public:avm/res/network/network-security-group:0.5.4' = {
   params: {
-    name: 'nsg-bicepdemo-app-swec-01'
+    name: 'nsg-${namePrefix}-app-${regionCode}'
     location: location
     tags: tags
     enableTelemetry: enableTelemetry
@@ -104,21 +146,21 @@ module nsgApp 'br/public:avm/res/network/network-security-group:0.5.4' = {
 
 module vnet 'br/public:avm/res/network/virtual-network:0.10.2' = {
   params: {
-    name: 'vnet-bicepdemo-swec-01'
+    name: 'vnet-${namePrefix}-${regionCode}'
     location: location
     tags: tags
     enableTelemetry: enableTelemetry
-    addressPrefixes: ['10.50.0.0/16']
+    addressPrefixes: [virtualNetworkAddressPrefix]
     subnets: [
       {
         name: 'snet-app'
-        addressPrefix: '10.50.1.0/24'
+        addressPrefix: appSubnetAddressPrefix
         networkSecurityGroupResourceId: nsgApp.outputs.resourceId
         privateEndpointNetworkPolicies: 'Disabled' // match existing (AVM default: Enabled)
       }
       {
         name: 'snet-data'
-        addressPrefix: '10.50.2.0/24'
+        addressPrefix: dataSubnetAddressPrefix
         serviceEndpoints: ['Microsoft.Storage']
         privateEndpointNetworkPolicies: 'Disabled' // match existing (AVM default: Enabled)
       }
@@ -129,11 +171,11 @@ module vnet 'br/public:avm/res/network/virtual-network:0.10.2' = {
 // ---------- Secrets ----------
 module keyVault 'br/public:avm/res/key-vault/vault:0.14.3' = {
   params: {
-    name: 'kv-bicepdemo-${suffix}'
+    name: 'kv-${namePrefix}-${suffix}'
     location: location
     tags: tags
     enableTelemetry: enableTelemetry
-    sku: 'standard' // match existing (AVM default: premium)
+    sku: keyVaultSku // match existing (AVM default: premium)
     enableRbacAuthorization: true
     softDeleteRetentionInDays: 7 // match existing (AVM default: 90, cannot be changed after creation)
     enablePurgeProtection: false // match existing (AVM default: true, irreversible once enabled)
@@ -155,20 +197,20 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.14.3' = {
 // ---------- Web app ----------
 module appServicePlan 'br/public:avm/res/web/serverfarm:0.7.1' = {
   params: {
-    name: 'asp-bicepdemo-swec-01'
+    name: 'asp-${namePrefix}-${regionCode}'
     location: location
     tags: tags
     enableTelemetry: enableTelemetry
     kind: 'linux'
-    skuName: 'F1' // match existing (AVM default: P1v3)
-    skuCapacity: 1 // match existing (AVM default: 3)
+    skuName: appServicePlanSkuName // match existing (AVM default: P1v3)
+    skuCapacity: appServicePlanSkuCapacity // match existing (AVM default: 3)
     zoneRedundant: false
   }
 }
 
 module webApp 'br/public:avm/res/web/site:0.24.0' = {
   params: {
-    name: 'app-bicepdemo-${suffix}'
+    name: 'app-${namePrefix}-${suffix}'
     location: location
     tags: tags
     enableTelemetry: enableTelemetry
@@ -181,7 +223,7 @@ module webApp 'br/public:avm/res/web/site:0.24.0' = {
       userAssignedResourceIds: [identity.outputs.resourceId]
     }
     siteConfig: {
-      linuxFxVersion: 'NODE|24-lts'
+      linuxFxVersion: linuxFxVersion
       alwaysOn: false // F1 does not support Always On (AVM default: true)
       minTlsVersion: '1.2'
       ftpsState: 'FtpsOnly'

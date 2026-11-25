@@ -56,7 +56,8 @@ switch ($Mode) {
         az deployment group what-if @common --result-format FullResourcePayloads
     }
     "Deploy" {
-        $confirm = if ($Force) { @() } else { @("--confirm-with-what-if") }
+        # @() keeps an array: a single-item array returned by 'if' is unwrapped to a string, which splats per character
+        $confirm = @(if (-not $Force) { "--confirm-with-what-if" })
         az deployment group create @common -n $deploymentName @confirm --query properties.outputs -o json
     }
     "Stack" {
