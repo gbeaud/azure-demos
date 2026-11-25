@@ -25,7 +25,6 @@ $suffix = (-join ($hash | ForEach-Object { $_.ToString("x2") })).Substring(0, 6)
 
 $tags = @("environment=demo", "purpose=bicep-export-demo", "managedBy=manual")
 
-$lawName  = "log-bicepdemo-swec-01"
 $stName   = "stbicepdemo$suffix"
 $vnetName = "vnet-bicepdemo-swec-01"
 $nsgName  = "nsg-bicepdemo-app-swec-01"
@@ -36,11 +35,6 @@ $appName  = "app-bicepdemo-$suffix"
 
 Write-Host "Resource group..." -ForegroundColor Cyan
 az group create -n $ResourceGroupName -l $Location --tags $tags -o none
-
-Write-Host "Log Analytics workspace..." -ForegroundColor Cyan
-az monitor log-analytics workspace create -g $ResourceGroupName -n $lawName -l $Location `
-    --sku PerGB2018 --retention-time 30 --tags $tags -o none
-$lawId = az monitor log-analytics workspace show -g $ResourceGroupName -n $lawName --query id -o tsv
 
 Write-Host "Storage account + blob container..." -ForegroundColor Cyan
 az storage account create -g $ResourceGroupName -n $stName -l $Location `
@@ -88,20 +82,6 @@ az role assignment create --assignee-object-id $idPrincipalId --assignee-princip
     --role "Storage Blob Data Reader" --scope $stId -o none
 az role assignment create --assignee-object-id $idPrincipalId --assignee-principal-type ServicePrincipal `
     --role "Key Vault Secrets User" --scope $kvId -o none
-
-Write-Host "Diagnostic settings to Log Analytics..." -ForegroundColor Cyan
-# JSON passed via files to avoid shell quoting issues with az.cmd
-$kvLogs = New-TemporaryFile
-$stLogs = New-TemporaryFile
-'[{"categoryGroup":"audit","enabled":true}]' | Set-Content $kvLogs
-'[{"category":"StorageWrite","enabled":true},{"category":"StorageDelete","enabled":true}]' | Set-Content $stLogs
-try {
-    az monitor diagnostic-settings create -n "diag-to-law" --resource $kvId --workspace $lawId --logs "@$kvLogs" -o none
-    az monitor diagnostic-settings create -n "diag-to-law" --resource "$stId/blobServices/default" --workspace $lawId --logs "@$stLogs" -o none
-}
-finally {
-    Remove-Item $kvLogs, $stLogs -ErrorAction SilentlyContinue
-}
 
 Write-Host "`nDone. Resources in $ResourceGroupName :" -ForegroundColor Green
 az resource list -g $ResourceGroupName --query "[].{name:name, type:type}" -o table

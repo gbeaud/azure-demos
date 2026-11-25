@@ -13,7 +13,6 @@ az login
 
 | Resource | SKU / notes | Approx. cost |
 |---|---|---|
-| Log Analytics workspace | PerGB2018, 30 days retention | ~free (minimal ingestion) |
 | Storage account + `data` container | Standard_LRS, TLS1.2, no public blob access | ~free when empty |
 | NSG with `Allow-HTTPS-Inbound` rule | | free |
 | VNet `10.50.0.0/16`, `snet-app` (NSG), `snet-data` (service endpoint) | | free |
@@ -21,9 +20,10 @@ az login
 | Key Vault | Standard, RBAC, 7-day soft delete | ~free (no operations) |
 | App Service plan + Linux web app | **F1 Free**, Node 24, HTTPS only, UAMI, app settings | free |
 | Role assignments (UAMI -> Storage Blob Data Reader, Key Vault Secrets User) | | free |
-| Diagnostic settings (Key Vault, blob service -> Log Analytics) | | ~free |
 
-The mix is intentional: parent/child resources (VNet/subnets, storage/container), cross-resource references (subnet -> NSG, web app -> plan/identity), and **extension resources** (role assignments, diagnostic settings) that typical export tools miss.
+The mix is intentional: parent/child resources (VNet/subnets, storage/container), cross-resource references (subnet -> NSG, web app -> plan/identity), and **extension resources** (role assignments) that typical export tools miss.
+
+No Log Analytics workspace on purpose: its ~700 built-in tables and saved searches would flood the export with noise.
 
 ## 2. Demo flow
 
@@ -37,8 +37,8 @@ The two Bicep folders show the before / after:
 
 | Folder | Produced by | Content |
 |---|---|---|
-| [`bicep-generated-by-script/`](bicep-generated-by-script/) | `export-to-bicep.ps1` - **deterministic, no AI** | Raw export of the demo RG as-is: ~11,700 lines, 759 resources, 8 compile errors. Not deployable without fixes. |
-| [`bicep-refactored-by-ai-with-avm/`](bicep-refactored-by-ai-with-avm/) | **GitHub Copilot (AI)**, from the script output | Clean `main.bicep` (~240 lines) using [Azure Verified Modules](https://aka.ms/avm) + `main.bicepparam`. What-if verified against the live RG. |
+| [`bicep-generated-by-script/`](bicep-generated-by-script/) | `export-to-bicep.ps1` - **deterministic, no AI** | Raw export of the demo RG as-is: ~530 lines, 19 resources, 8 compile errors. Not deployable without fixes. |
+| [`bicep-refactored-by-ai-with-avm/`](bicep-refactored-by-ai-with-avm/) | **GitHub Copilot (AI)**, from the script output | Clean `main.bicep` (~200 lines) using [Azure Verified Modules](https://aka.ms/avm) + `main.bicepparam`. What-if verified against the live RG. |
 
 ### a. Export to Bicep
 ```powershell
@@ -57,19 +57,19 @@ Per resource group, `bicep-generated-by-script/<rg>/` contains:
 The output of the demo RG is committed for reference; re-running the script overwrites it. It is not the code you maintain. Portal equivalent: resource group > **Automation > Export template > Bicep**.
 
 Talking points (observed on this RG):
-- ~11,700 lines / ~760 resources, mostly Log Analytics saved searches and tables, read-only properties and hard-coded IDs.
-- Export errors for some child types (`workspaces/dataSources`, `sites/extensions`, ...).
+- ~530 lines / 19 resources for 7 actual resources: auto-created children (`fileServices`, `queueServices`, `tableServices`, `basicPublishingCredentialsPolicies`, `hostNameBindings`), read-only properties and hard-coded IDs. A Log Analytics workspace alone would add ~740 resources (built-in tables and saved searches).
+- Export errors for some child types (`sites/extensions`, `sites/certificates`, ...).
 - 8 decompile errors (e.g. VNet <-> subnet and NSG <-> rule cycles) that need manual fixing.
-- **Role assignments and diagnostic settings are not in the export** - they come from the separate JSON files.
+- **Role assignments (and diagnostic settings, locks, policy assignments) are not in the export** - they come from the separate JSON files.
 - `az group export` is limited to 200 resources per resource group.
 
 ### b. Clean, per-resource import with VS Code
 Bicep extension > command palette > **Bicep: Insert Resource...** > paste a resource ID. Produces a single clean resource declaration from the live configuration.
 
 ### c. Refactor with GitHub Copilot
-Ask Copilot to turn `bicep-generated-by-script/<rg>/main.bicep` and the JSON files into a clean `main.bicep` using Azure Verified Modules: parameters for names/location/tags, symbolic references instead of hard-coded IDs, remove read-only/default properties, add the role assignments and diagnostic settings (as AVM module parameters).
+Ask Copilot to turn `bicep-generated-by-script/<rg>/main.bicep` and the JSON files into a clean `main.bicep` using Azure Verified Modules: parameters for names/location/tags, symbolic references instead of hard-coded IDs, remove read-only/default properties, add the role assignments (as AVM module parameters).
 
-Compare the result with [bicep-refactored-by-ai-with-avm/main.bicep](bicep-refactored-by-ai-with-avm/main.bicep) (~240 lines and 8 AVM modules instead of ~11,700 lines). Things to point out:
+Compare the result with [bicep-refactored-by-ai-with-avm/main.bicep](bicep-refactored-by-ai-with-avm/main.bicep) (~200 lines and 7 AVM modules instead of ~530 lines). Things to point out:
 - It **adopts** the existing role assignments by passing their names in `main.bicepparam`: generating new names with `guid()` would fail with `RoleAssignmentExists`.
 - AVM modules apply **secure / production defaults** (GRS, purge protection, infrastructure encryption, network deny, P1v3 plan, ...). To take over existing resources without changing them, those defaults are explicitly overridden to match reality (comments `// match existing (AVM default: ...)`). Some of them, e.g. Key Vault purge protection or storage infrastructure encryption, cannot be reverted or changed after creation, so what-if is essential. Hardening can then be done afterwards, deliberately, one change at a time.
 
@@ -81,7 +81,7 @@ Compare the result with [bicep-refactored-by-ai-with-avm/main.bicep](bicep-refac
 ```
 By default it uses `bicep-refactored-by-ai-with-avm/main.bicep`. Use `-TemplateFile` / `-ParametersFile` to target your own refactored template.
 
-With the AVM template, what-if shows **no create and no delete**: only the `managedBy` tag changing from `manual` to `bicep`, plus known what-if noise (e.g. `principalId` shown as a `reference()`, disabled log categories in diagnostic settings, server-side defaults). Iterate until that is the case, then deploy: the resources are now managed by code. A **deployment stack** additionally tracks the managed resources and can block changes made outside Bicep.
+With the AVM template, what-if shows **no create and no delete**: only the `managedBy` tag changing from `manual` to `bicep`, plus known what-if noise (e.g. `principalId` shown as a `reference()`, server-side defaults). Iterate until that is the case, then deploy: the resources are now managed by code. A **deployment stack** additionally tracks the managed resources and can block changes made outside Bicep.
 
 ### e. (Optional) Show drift
 Change something in the portal (e.g. add an NSG rule) and re-run `./deploy-bicep.ps1` to show the drift being detected.

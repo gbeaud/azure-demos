@@ -31,23 +31,6 @@ param keyVaultRoleAssignmentName string?
 @description('Send AVM usage telemetry to Microsoft.')
 param enableTelemetry bool = true
 
-// ---------- Monitoring ----------
-module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.16.2' = {
-  params: {
-    name: 'log-bicepdemo-swec-01'
-    location: location
-    tags: tags
-    enableTelemetry: enableTelemetry
-    skuName: 'PerGB2018'
-    dataRetention: 30
-    forceCmkForQuery: false // match existing (AVM default: true)
-    features: {
-      enableLogAccessUsingOnlyResourcePermissions: true
-      disableLocalAuth: false // match existing (AVM default: true)
-    }
-  }
-}
-
 // ---------- Identity ----------
 module identity 'br/public:avm/res/managed-identity/user-assigned-identity:0.6.0' = {
   params: {
@@ -81,20 +64,6 @@ module storage 'br/public:avm/res/storage/storage-account:0.33.2' = {
       containerDeleteRetentionPolicyEnabled: false // match existing (AVM default: true, 7 days)
       containers: [
         { name: 'data', publicAccess: 'None' }
-      ]
-      diagnosticSettings: [
-        {
-          name: 'diag-to-law'
-          workspaceResourceId: logAnalytics.outputs.resourceId
-          logCategoriesAndGroups: [
-            { category: 'StorageWrite' }
-            { category: 'StorageDelete' }
-          ]
-          metricCategories: [
-            { category: 'Capacity', enabled: false }
-            { category: 'Transaction', enabled: false }
-          ]
-        }
       ]
     }
     roleAssignments: [
@@ -172,18 +141,6 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.14.3' = {
     enableVaultForTemplateDeployment: false // match existing (AVM default: true)
     enableVaultForDiskEncryption: false // match existing (AVM default: true)
     publicNetworkAccess: 'Disabled'
-    diagnosticSettings: [
-      {
-        name: 'diag-to-law'
-        workspaceResourceId: logAnalytics.outputs.resourceId
-        logCategoriesAndGroups: [
-          { categoryGroup: 'audit' }
-        ]
-        metricCategories: [
-          { category: 'AllMetrics', enabled: false }
-        ]
-      }
-    ]
     roleAssignments: [
       {
         name: keyVaultRoleAssignmentName
